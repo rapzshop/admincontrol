@@ -1,11 +1,9 @@
-// Firebase Init
 const firebaseConfig = {
   databaseURL: "https://pembayaran-8587d-default-rtdb.asia-southeast1.firebasedatabase.app"
 };
 firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
 
-// Cari Transaksi
 function cariTransaksi() {
   const id = document.getElementById("idTransaksi").value.trim();
   const hasilEl = document.getElementById("hasilTransaksi");
@@ -45,7 +43,7 @@ function konfirmasiTransaksi(id) {
 
     db.ref("pesanan/" + id + "/status").set("selesai").then(() => {
       alert("✅ Transaksi dikonfirmasi.");
-      kirimWA(data);  // ⬅ Kirim WA otomatis via Fonnte
+      kirimWA(data);
       cariTransaksi();
     });
   });
@@ -81,7 +79,6 @@ function tambahStok() {
   });
 }
 
-// Kirim WA via Fonnte (Token Aktif)
 function kirimWA(data) {
   const fonnteToken = "5GMYufEN5CdzTGmwdTn4";
 
