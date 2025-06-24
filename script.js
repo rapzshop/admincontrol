@@ -1,28 +1,30 @@
-// Firebase Init
+// Firebase config
 const firebaseConfig = {
-  databaseURL: "https://pembayaran-8587d-default-rtdb.asia-southeast1.firebasedatabase.app"
+  databaseURL: "https://pembayaran-8587d-default-rtdb.asia-southeast1.firebasedatabase.app",
 };
 firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
 
-// Cari Transaksi
 function cariTransaksi() {
   const id = document.getElementById("idTransaksi").value.trim();
-  const hasilEl = document.getElementById("hasilTransaksi");
-  const errorEl = document.getElementById("error");
-  hasilEl.style.display = "none";
-  errorEl.textContent = "";
+  const hasil = document.getElementById("hasilTransaksi");
+  const error = document.getElementById("error");
+  hasil.style.display = "none";
+  error.textContent = "";
 
-  if (!id) return errorEl.textContent = "⚠️ Masukkan ID Transaksi terlebih dahulu.";
+  if (!id) {
+    error.textContent = "❗ Masukkan ID transaksi.";
+    return;
+  }
 
-  db.ref("pesanan/" + id).once("value").then(snapshot => {
-    if (!snapshot.exists()) {
-      errorEl.textContent = "❌ ID Transaksi tidak ditemukan.";
+  db.ref("pesanan/" + id).once("value").then((snap) => {
+    if (!snap.exists()) {
+      error.textContent = "❌ ID tidak ditemukan.";
       return;
     }
 
-    const data = snapshot.val();
-    hasilEl.innerHTML = `
+    const data = snap.val();
+    hasil.innerHTML = `
       <p><b>Nama:</b> ${data.nama}</p>
       <p><b>WA:</b> ${data.wa}</p>
       <p><b>Produk:</b> ${data.produk}</p>
@@ -31,17 +33,17 @@ function cariTransaksi() {
       <p><b>Metode:</b> ${data.metode}</p>
       <p><b>Waktu:</b> ${data.waktu}</p>
       <p><b>Status:</b> ${data.status}</p>
-      <button onclick="konfirmasiTransaksi('${id}')">✅ Tandai Selesai</button>
-      <button onclick="hapusTransaksi('${id}')">🗑 Hapus Transaksi</button>
+      <button onclick="konfirmasi('${id}')">✅ Konfirmasi & Kirim WA</button>
+      <button onclick="hapus('${id}')">🗑 Hapus</button>
     `;
-    hasilEl.style.display = "block";
+    hasil.style.display = "block";
   });
 }
 
-function konfirmasiTransaksi(id) {
-  db.ref("pesanan/" + id).once("value").then(snapshot => {
-    const data = snapshot.val();
-    if (!data) return alert("❌ Transaksi tidak ditemukan.");
+function konfirmasi(id) {
+  db.ref("pesanan/" + id).once("value").then((snap) => {
+    const data = snap.val();
+    if (!data) return alert("❌ Data tidak ditemukan.");
 
     db.ref("pesanan/" + id + "/status").set("selesai").then(() => {
       alert("✅ Transaksi dikonfirmasi.");
@@ -51,8 +53,8 @@ function konfirmasiTransaksi(id) {
   });
 }
 
-function hapusTransaksi(id) {
-  if (confirm("Yakin ingin menghapus transaksi ini?")) {
+function hapus(id) {
+  if (confirm("Hapus transaksi ini?")) {
     db.ref("pesanan/" + id).remove().then(() => {
       alert("🗑 Transaksi dihapus.");
       document.getElementById("hasilTransaksi").style.display = "none";
@@ -62,70 +64,51 @@ function hapusTransaksi(id) {
 
 function tambahStok() {
   const produk = document.getElementById("produkRestock").value;
-  const tambah = parseInt(document.getElementById("jumlahRestock").value);
-  const result = document.getElementById("restockResult");
+  const jumlah = parseInt(document.getElementById("jumlahRestock").value);
+  const status = document.getElementById("restockStatus");
 
-  if (!tambah || tambah < 1) {
-    result.innerHTML = "<span class='error'>❗ Masukkan jumlah yang valid.</span>";
+  if (!jumlah || jumlah <= 0) {
+    status.style.color = "red";
+    status.textContent = "❌ Masukkan jumlah yang valid.";
     return;
   }
 
   const stokRef = db.ref("stok/" + produk);
-  stokRef.once("value").then(snapshot => {
-    const current = snapshot.val() || 0;
-    const updated = current + tambah;
-    stokRef.set(updated).then(() => {
-      result.textContent = `✅ Stok ${produk} berhasil ditambah menjadi ${updated}`;
+  stokRef.once("value").then((snap) => {
+    const current = snap.val() || 0;
+    stokRef.set(current + jumlah).then(() => {
+      status.style.color = "green";
+      status.textContent = `✅ Stok ${produk} jadi ${current + jumlah}`;
       document.getElementById("jumlahRestock").value = "";
     });
   });
 }
 
-// Kirim WA via Fonnte
 function kirimWA(data) {
-  const fonnteToken = "5GMYufEN5CdzTGmwdTn4";
+  const token = "5GMYufEN5CdzTGmwdTn4"; // fonnte
+  let email = data.email || "-";
+  if (data.produk === "alight") email = "kerewasfas-9754@yopmail.com";
+  if (data.produk === "am1thn") email = "biceeake-115@yopmail.com";
 
-  let produkLabel = "";
-  let emailProduk = "";
+  const pesan = `✅ Pesanan ${data.produk === "canva" ? "Canva Pro" : data.produk === "am1thn" ? "AM Premium Sharing" : "Alight Motion"} Anda Telah Dikonfirmasi!
+📧 Email: ${email}
+💳 Metode: ${data.metode}
+💰 Harga: Rp ${data.harga}
+🕒 Waktu: ${data.waktu}
 
-  switch(data.produk) {
-    case "alight":
-      produkLabel = "Alight Motion Premium";
-      emailProduk = "kerewasfas-9754@yopmail.com";
-      break;
-    case "canva":
-      produkLabel = "Canva Pro 1 Bulan";
-      emailProduk = data.email || "-";
-      break;
-    case "am1thn":
-      produkLabel = "AM Premium Sharing";
-      emailProduk = "biceeake-115@yopmail.com";
-      break;
-    default:
-      produkLabel = data.produk;
-      emailProduk = data.email || "-";
-  }
+Tutorial: https://jpst.it/3UWRT
+Terima kasih 🙏
 
-  const pesan = `✅ Pesanan ${produkLabel} Anda Telah Dikonfirmasi!\n` +
-                `📧 Email: ${emailProduk}\n` +
-                `💳 Metode: ${data.metode}\n` +
-                `💰 Harga: Rp ${data.harga}\n` +
-                `🕒 Waktu: ${data.waktu}\n\n` +
-                `Tutorial: https://jpst.it/3UWRT\n` +
-                `Terima kasih 🙏\n\n`;
+> Sent via fonnte.com`;
 
   fetch("https://api.fonnte.com/send", {
     method: "POST",
-    headers: {
-      Authorization: fonnteToken,
-    },
+    headers: { Authorization: token },
     body: new URLSearchParams({
       target: data.wa,
-      message: pesan
-    })
-  }).then(() => {
-    console.log("✅ Pesan WA terkirim ke", data.wa);
-  }).catch(e => {
-    console.error("❌ Gagal kirim WA:", e);
-  });
+      message: pesan,
+    }),
+  })
+  .then(() => console.log("✅ WA Terkirim"))
+  .catch(() => console.error("❌ Gagal kirim WA"));
 }
