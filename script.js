@@ -1,114 +1,143 @@
-// Firebase config
+// Firebase setup
 const firebaseConfig = {
   databaseURL: "https://pembayaran-8587d-default-rtdb.asia-southeast1.firebasedatabase.app",
 };
 firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
 
-function cariTransaksi() {
-  const id = document.getElementById("idTransaksi").value.trim();
-  const hasil = document.getElementById("hasilTransaksi");
-  const error = document.getElementById("error");
-  hasil.style.display = "none";
-  error.textContent = "";
+function getUserID() {
+  let userId = localStorage.getItem("user_id");
+  if (!userId) {
+    userId = 'USER-' + Math.random().toString(36).substr(2, 9).toUpperCase();
+    localStorage.setItem("user_id", userId);
+  }
+  document.getElementById("userIdDisplay").textContent = userId;
+  return userId;
+}
 
-  if (!id) {
-    error.textContent = "❗ Masukkan ID transaksi.";
+function tampilkanPembayaran() {
+  const metode = document.getElementById("metode").value;
+  document.getElementById("qr-section").style.display = (metode === "QRIS") ? "block" : "none";
+  document.getElementById("nomor-section").style.display = (metode === "DANA" || metode === "GoPay") ? "block" : "none";
+}
+
+function pilihProduk() {
+  const produk = document.getElementById("produk").value;
+  const harga = document.getElementById("harga");
+  const emailWrap = document.getElementById("email-wrap");
+  if (produk === "canva") {
+    harga.value = "4000";
+    emailWrap.style.display = "block";
+    document.querySelector(".warning-email").style.display = "block";
+  } else {
+    harga.value = "5000";
+    emailWrap.style.display = "none";
+    document.querySelector(".warning-email").style.display = "none";
+  }
+}
+
+function copyNomor() {
+  const nomor = document.getElementById("nomor-tujuan").innerText;
+  navigator.clipboard.writeText(nomor).then(() => {
+    alert("📋 Nomor berhasil disalin!");
+  });
+}
+
+function generateID() {
+  return 'ORDER-' + Math.random().toString(36).substr(2, 9).toUpperCase();
+}
+
+function validasiVoucher(kode, userId) {
+  return db.ref("voucher/" + kode).once("value").then((snap) => {
+    if (!snap.exists()) return { valid: false, pesan: "Kode tidak ditemukan." };
+    const data = snap.val();
+    if (!data.aktif) return { valid: false, pesan: "Kode tidak aktif." };
+    if (data.digunakan) return { valid: false, pesan: "Kode sudah digunakan." };
+    if (data.userId && data.userId !== userId) return { valid: false, pesan: "Kode ini bukan untuk perangkat Anda." };
+    return { valid: true, potongan: data.potongan || 0 };
+  });
+}
+
+function kirimPesan() {
+  const nama = document.getElementById('nama').value.trim();
+  const wa = document.getElementById('wa').value.trim();
+  const produk = document.getElementById('produk').value;
+  const metode = document.getElementById('metode').value;
+  const kode = document.getElementById('kode').value.trim();
+  const hargaAwal = document.getElementById('harga').value;
+  const email = document.getElementById('email').value.trim();
+  const bukti = document.getElementById('bukti').files[0];
+
+  if (!/^08[0-9]{8,11}$/.test(wa)) return alert("❌ Nomor WA tidak valid.");
+  if (!nama) return alert("❗ Nama wajib diisi.");
+  if (!metode) return alert("❗ Pilih metode pembayaran.");
+  if (!bukti) return alert("❗ Upload bukti transfer wajib.");
+  if (produk === 'canva' && !email) return alert("❗ Email untuk Canva wajib diisi.");
+
+  const idTransaksi = generateID();
+  const waktu = new Date().toLocaleString('id-ID');
+  const userId = getUserID();
+
+  const prosesSubmit = (hargaFinal, potonganInfo) => {
+    const data = { id: idTransaksi, userId, nama, wa, produk, metode, kode, harga: hargaFinal, email, waktu, status: "menunggu" };
+    db.ref("pesanan/" + idTransaksi).set(data).then(() => {
+      if (kode !== "" && kode !== "Tidak digunakan") {
+        db.ref("voucher/" + kode + "/digunakan").set(true);
+      }
+
+      const msg = `🛒 Pesanan Masuk\nID Transaksi: ${idTransaksi}\n👤 ${nama}\n📱 ${wa}\n📦 ${produk === 'canva' ? 'Canva Pro' : 'Alight Motion'}\n💳 ${metode}\n💰 Rp ${hargaFinal}${potonganInfo}\n🎟 ${kode}\n📧 ${email || '-'}\n🕒 ${waktu}`;
+      const bot = '7834741276:AAE4aBvJWrAQt1iUNirsayeuyA3zCBWu0oA';
+      const chat = '7133478033';
+
+      fetch(`https://api.telegram.org/bot${bot}/sendMessage`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ chat_id: chat, text: msg, parse_mode: 'Markdown' })
+      }).then(() => {
+        const fd = new FormData();
+        fd.append('chat_id', chat);
+        fd.append('photo', bukti);
+        fd.append('caption', `🧾 Bukti Transfer dari ${nama}`);
+
+        fetch(`https://api.telegram.org/bot${bot}/sendPhoto`, {
+          method: 'POST',
+          body: fd
+        }).then(() => {
+          alert('✅ Pesanan berhasil dikirim.');
+        }).catch(() => alert('❌ Gagal kirim bukti transfer.'));
+      }).catch(() => alert('❌ Gagal kirim ke Telegram.'));
+    });
+  };
+
+  if (kode !== "") {
+    validasiVoucher(kode, userId).then(result => {
+      if (!result.valid) return alert("❌ " + result.pesan);
+      const potongan = result.potongan;
+      const hargaFinal = parseInt(hargaAwal) - potongan;
+      alert(`✅ Kode berhasil digunakan. Diskon Rp${potongan}`);
+      prosesSubmit(hargaFinal, ` (Diskon: Rp${potongan})`);
+    });
+  } else {
+    prosesSubmit(parseInt(hargaAwal), "");
+  }
+}
+
+// Countdown 3 jam
+const countdown = document.getElementById("countdown");
+const now = new Date().getTime();
+const end = now + (3 * 60 * 60 * 1000);
+const x = setInterval(() => {
+  const now = new Date().getTime();
+  const distance = end - now;
+  if (distance < 0) {
+    clearInterval(x);
+    countdown.innerHTML = "❌ Promo berakhir";
     return;
   }
+  const h = Math.floor(distance / (1000 * 60 * 60));
+  const m = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
+  const s = Math.floor((distance % (1000 * 60)) / 1000);
+  countdown.innerHTML = `${h.toString().padStart(2, "0")}:${m.toString().padStart(2, "0")}:${s.toString().padStart(2, "0")}`;
+}, 1000);
 
-  db.ref("pesanan/" + id).once("value").then((snap) => {
-    if (!snap.exists()) {
-      error.textContent = "❌ ID tidak ditemukan.";
-      return;
-    }
-
-    const data = snap.val();
-    hasil.innerHTML = `
-      <p><b>Nama:</b> ${data.nama}</p>
-      <p><b>WA:</b> ${data.wa}</p>
-      <p><b>Produk:</b> ${data.produk}</p>
-      <p><b>Email:</b> ${data.email || '-'}</p>
-      <p><b>Harga:</b> Rp${data.harga}</p>
-      <p><b>Metode:</b> ${data.metode}</p>
-      <p><b>Waktu:</b> ${data.waktu}</p>
-      <p><b>Status:</b> ${data.status}</p>
-      <button onclick="konfirmasi('${id}')">✅ Konfirmasi & Kirim WA</button>
-      <button onclick="hapus('${id}')">🗑 Hapus</button>
-    `;
-    hasil.style.display = "block";
-  });
-}
-
-function konfirmasi(id) {
-  db.ref("pesanan/" + id).once("value").then((snap) => {
-    const data = snap.val();
-    if (!data) return alert("❌ Data tidak ditemukan.");
-
-    db.ref("pesanan/" + id + "/status").set("selesai").then(() => {
-      alert("✅ Transaksi dikonfirmasi.");
-      kirimWA(data);
-      cariTransaksi();
-    });
-  });
-}
-
-function hapus(id) {
-  if (confirm("Hapus transaksi ini?")) {
-    db.ref("pesanan/" + id).remove().then(() => {
-      alert("🗑 Transaksi dihapus.");
-      document.getElementById("hasilTransaksi").style.display = "none";
-    });
-  }
-}
-
-function tambahStok() {
-  const produk = document.getElementById("produkRestock").value;
-  const jumlah = parseInt(document.getElementById("jumlahRestock").value);
-  const status = document.getElementById("restockStatus");
-
-  if (!jumlah || jumlah <= 0) {
-    status.style.color = "red";
-    status.textContent = "❌ Masukkan jumlah yang valid.";
-    return;
-  }
-
-  const stokRef = db.ref("stok/" + produk);
-  stokRef.once("value").then((snap) => {
-    const current = snap.val() || 0;
-    stokRef.set(current + jumlah).then(() => {
-      status.style.color = "green";
-      status.textContent = `✅ Stok ${produk} jadi ${current + jumlah}`;
-      document.getElementById("jumlahRestock").value = "";
-    });
-  });
-}
-
-function kirimWA(data) {
-  const token = "5GMYufEN5CdzTGmwdTn4"; // fonnte
-  let email = data.email || "-";
-  if (data.produk === "alight") email = "kerewasfas-9754@yopmail.com";
-  if (data.produk === "am1thn") email = "biceeake-115@yopmail.com";
-
-  const pesan = `✅ Pesanan ${data.produk === "canva" ? "Canva Pro" : data.produk === "am1thn" ? "AM Premium Sharing" : "Alight Motion"} Anda Telah Dikonfirmasi!
-📧 Email: ${email}
-💳 Metode: ${data.metode}
-💰 Harga: Rp ${data.harga}
-🕒 Waktu: ${data.waktu}
-
-Tutorial: https://jpst.it/3UWRT
-Terima kasih 🙏
-
-> Sent via fonnte.com`;
-
-  fetch("https://api.fonnte.com/send", {
-    method: "POST",
-    headers: { Authorization: token },
-    body: new URLSearchParams({
-      target: data.wa,
-      message: pesan,
-    }),
-  })
-  .then(() => console.log("✅ WA Terkirim"))
-  .catch(() => console.error("❌ Gagal kirim WA"));
-}
+getUserID();
