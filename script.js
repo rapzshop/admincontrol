@@ -13,7 +13,7 @@ function cariTransaksi() {
 
   if (!id) return errorEl.textContent = "⚠️ Masukkan ID Transaksi terlebih dahulu.";
 
-  db.ref("pesanan/" + id).once("value", snapshot => {
+  db.ref("pesanan/" + id).once("value").then(snapshot => {
     if (!snapshot.exists()) {
       errorEl.textContent = "❌ ID Transaksi tidak ditemukan.";
       return;
@@ -37,7 +37,7 @@ function cariTransaksi() {
 }
 
 function konfirmasiTransaksi(id) {
-  db.ref("pesanan/" + id).once("value", snapshot => {
+  db.ref("pesanan/" + id).once("value").then(snapshot => {
     const data = snapshot.val();
     if (!data) return alert("❌ Transaksi tidak ditemukan.");
 
@@ -69,7 +69,7 @@ function tambahStok() {
   }
 
   const stokRef = db.ref("stok/" + produk);
-  stokRef.once("value", snapshot => {
+  stokRef.once("value").then(snapshot => {
     const current = snapshot.val() || 0;
     const updated = current + tambah;
     stokRef.set(updated).then(() => {
