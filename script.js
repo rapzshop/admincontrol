@@ -1,11 +1,9 @@
-// Firebase Init
 const firebaseConfig = {
   databaseURL: "https://pembayaran-8587d-default-rtdb.asia-southeast1.firebasedatabase.app"
 };
 firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
 
-// Cari Transaksi
 function cariTransaksi() {
   const id = document.getElementById("idTransaksi").value.trim();
   const hasilEl = document.getElementById("hasilTransaksi");
@@ -15,7 +13,7 @@ function cariTransaksi() {
 
   if (!id) return errorEl.textContent = "⚠️ Masukkan ID Transaksi terlebih dahulu.";
 
-  db.ref("pesanan/" + id).once("value").then(snapshot => {
+  db.ref("pesanan/" + id).once("value", snapshot => {
     if (!snapshot.exists()) {
       errorEl.textContent = "❌ ID Transaksi tidak ditemukan.";
       return;
@@ -39,7 +37,7 @@ function cariTransaksi() {
 }
 
 function konfirmasiTransaksi(id) {
-  db.ref("pesanan/" + id).once("value").then(snapshot => {
+  db.ref("pesanan/" + id).once("value", snapshot => {
     const data = snapshot.val();
     if (!data) return alert("❌ Transaksi tidak ditemukan.");
 
@@ -71,7 +69,7 @@ function tambahStok() {
   }
 
   const stokRef = db.ref("stok/" + produk);
-  stokRef.once("value").then(snapshot => {
+  stokRef.once("value", snapshot => {
     const current = snapshot.val() || 0;
     const updated = current + tambah;
     stokRef.set(updated).then(() => {
@@ -81,7 +79,6 @@ function tambahStok() {
   });
 }
 
-// Kirim WA via Fonnte
 function kirimWA(data) {
   const fonnteToken = "5GMYufEN5CdzTGmwdTn4";
 
