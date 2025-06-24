@@ -1,38 +1,37 @@
 <!DOCTYPE html>
 <html lang="id">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Admin Panel - Konfirmasi & Restock</title>
   <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
-  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="style.css" />
 </head>
 <body>
+  <h2>🔐 Konfirmasi Transaksi</h2>
 
-<h2>🔐 Konfirmasi Transaksi</h2>
+  <label for="idTransaksi">Masukkan ID Transaksi:</label>
+  <input type="text" id="idTransaksi" placeholder="Contoh: ORDER-XYZ123" />
+  <button id="btnCari">🔍 Cari Transaksi</button>
 
-<label for="idTransaksi">Masukkan ID Transaksi:</label>
-<input type="text" id="idTransaksi" placeholder="Contoh: ORDER-XYZ123">
-<button onclick="cariTransaksi()">🔍 Cari Transaksi</button>
+  <div class="hasil" id="hasilTransaksi" style="display: none;"></div>
+  <div id="error" class="error"></div>
 
-<div class="hasil" id="hasilTransaksi" style="display:none;"></div>
-<div id="error" class="error"></div>
+  <h2>🔁 Restock Produk</h2>
 
-<h2>🔁 Restock Produk</h2>
+  <label for="produkRestock">Pilih Produk:</label>
+  <select id="produkRestock">
+    <option value="alight">Alight Motion</option>
+    <option value="canva">Canva Pro</option>
+    <option value="am1thn">AM Premium Sharing</option>
+  </select>
 
-<label for="produkRestock">Pilih Produk:</label>
-<select id="produkRestock">
-  <option value="alight">Alight Motion</option>
-  <option value="canva">Canva Pro</option>
-  <option value="am1thn">AM Premium Sharing</option>
-</select>
+  <label for="jumlahRestock">Jumlah Tambahan:</label>
+  <input type="number" id="jumlahRestock" min="1" placeholder="Contoh: 10" />
+  <button id="btnRestock">🚀 Tambah Stok</button>
+  <div id="restockResult" class="success"></div>
 
-<label for="jumlahRestock">Jumlah Tambahan:</label>
-<input type="number" id="jumlahRestock" min="1" placeholder="Contoh: 10">
-<button onclick="tambahStok()">🚀 Tambah Stok</button>
-<div id="restockResult" class="success"></div>
-
-<script src="admin.js"></script>
+  <script src="admin.js" defer></script>
 </body>
 </html>
